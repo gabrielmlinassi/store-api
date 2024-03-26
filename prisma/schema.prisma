@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:postgres@localhost:5432/store"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  email    String  @unique
+  name     String?
+  password String
+
+  Cart                   Cart?
+  Order                  Order[]
+  shipmentAddress        ShipmentAddress[]
+  userDefault            UserDefault[]
+  PasswordRecoveryTokens PasswordRecoveryTokens[]
+
+  @@map("users")
+}
+
+model UserDefault {
+  id Int @id @default(autoincrement())
+
+  defaultShippingAddressId Int
+  ShipmentAddress          ShipmentAddress @relation(fields: [defaultShippingAddressId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("user_defaults")
+}
+
+model Session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
+  @@map("sessions")
+}
+
+model PasswordRecoveryTokens {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String
+  expiresAt DateTime
+
+  @@index([token], map: "IDX_PasswordRecoveryTokens_token")
+  @@map("password_recovery_tokens")
+}
+
+model ShipmentAddress {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name       String
+  address    String
+  zip        String
+  number     Int
+  complement String?
+
+  userId      Int
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userDefault UserDefault[]
+
+  @@unique([userId, name])
+  @@map("shipment_addresses")
+}
+
+model Cart {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cartItems  CartItem[]
+  totalPrice Float
+
+  userId Int?  @unique
+  user   User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+
+  cartId Int
+  cart   Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, cartId])
+  @@map("cart_items")
+}
+
+model Order {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status                    Status
+  totalPrice                Float
+  orderItems                OrderItem[]
+  userId                    Int
+  user                      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentIntentId           String
+  paymentIntentClientSecret String
+
+  @@unique([paymentIntentId])
+  @@map("orders")
+}
+
+enum Status {
+  PENDING
+  CANCELED
+  COMPLETED
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Int
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Product {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  url         String
+  description String
+  price       Float
+
+  OrderItem OrderItem[]
+  CartItem  CartItem[]
+
+  @@map("products")
+}
